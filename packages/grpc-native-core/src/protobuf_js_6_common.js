@@ -102,7 +102,7 @@ var fullyQualifiedName = exports.fullyQualifiedName;
 exports.getProtobufServiceAttrs = function getProtobufServiceAttrs(service,
                                                                    options) {
   var prefix = '/' + fullyQualifiedName(service) + '/';
-  service.resolveAll();
+
   return _.zipObject(_.map(service.methods, function(method) {
     return _.camelCase(method.name);
   }), _.map(service.methods, function(method) {

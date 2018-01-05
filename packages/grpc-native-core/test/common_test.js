@@ -22,15 +22,15 @@ var assert = require('assert');
 var _ = require('lodash');
 
 var common = require('../src/common');
-var protobuf_js_5_common = require('../src/protobuf_js_5_common');
+var protobuf_js_6_common = require('../src/protobuf_js_6_common');
 
-var serializeCls = protobuf_js_5_common.serializeCls;
-var deserializeCls = protobuf_js_5_common.deserializeCls;
+var serializeCls = protobuf_js_6_common.serializeCls;
+var deserializeCls = protobuf_js_6_common.deserializeCls;
 
 var ProtoBuf = require('protobufjs');
-
-var messages_proto = ProtoBuf.loadProtoFile(
-    __dirname + '/test_messages.proto').build();
+var root = new ProtoBuf.Root();
+var messages_proto = root.loadSync(
+    __dirname + '/test_messages.proto', { keepCase: true }).resolveAll();
 
 var default_options = common.defaultGrpcOptions;
 
@@ -96,6 +96,7 @@ describe('Proto message bytes serialize and deserialize', function() {
   var sequenceDeserialize = deserializeCls(
       messages_proto.SequenceValues, default_options);
   var b64_options = _.defaults({binaryAsBase64: true}, default_options);
+
   var sequenceBase64Deserialize = deserializeCls(
       messages_proto.SequenceValues, b64_options);
   var buffer_val = new Buffer([0x69, 0xb7]);

@@ -37,7 +37,6 @@ var Metadata = require('./src/metadata.js');
 
 var grpc = require('./src/grpc_extension');
 
-var protobuf_js_5_common = require('./src/protobuf_js_5_common');
 var protobuf_js_6_common = require('./src/protobuf_js_6_common');
 
 var constants = require('./src/constants.js');
@@ -72,28 +71,8 @@ grpc.setDefaultRootsPem(fs.readFileSync(SSL_ROOTS_PATH, 'ascii'));
  */
 exports.loadObject = function loadObject(value, options) {
   options = _.defaults(options, common.defaultGrpcOptions);
-  options = _.defaults(options, {'protobufjsVersion': 'detect'});
-  var protobufjsVersion;
-  if (options.protobufjsVersion === 'detect') {
-    if (protobuf_js_6_common.isProbablyProtobufJs6(value)) {
-      protobufjsVersion = 6;
-    } else if (protobuf_js_5_common.isProbablyProtobufJs5(value)) {
-      protobufjsVersion = 5;
-    } else {
-      var error_message = 'Could not detect ProtoBuf.js version. Please ' +
-          'specify the version number with the "protobufjs_version" option';
-      throw new Error(error_message);
-    }
-  } else {
-    protobufjsVersion = options.protobufjsVersion;
-  }
-  switch (protobufjsVersion) {
-    case 6: return protobuf_js_6_common.loadObject(value, options);
-    case 5:
-    return protobuf_js_5_common.loadObject(value, options);
-    default:
-    throw new Error('Unrecognized protobufjsVersion', protobufjsVersion);
-  }
+
+  return protobuf_js_6_common.loadObject(value, options);
 };
 
 var loadObject = exports.loadObject;
@@ -102,7 +81,8 @@ var loadObject = exports.loadObject;
  * Load a gRPC object from a .proto file.
  * @memberof grpc
  * @alias grpc.load
- * @param {string|{root: string, file: string}} filename The file to load
+ * @param {string|{root: string, file: string}} filename The file to load or
+ *     object with root directory and file
  * @param {string=} format The file format to expect. Must be either 'proto' or
  *     'json'. Defaults to 'proto'
  * @param {Object=} options Options to apply to the loaded file
@@ -120,30 +100,29 @@ var loadObject = exports.loadObject;
  */
 exports.load = function load(filename, format, options) {
   options = _.defaults(options, common.defaultGrpcOptions);
-  options.protobufjsVersion = 5;
-  if (!format) {
-    format = 'proto';
+
+  if (!options.convertFieldsToCamelCase) {
+    options.keepCase = true;
   }
-  var convertFieldsToCamelCaseOriginal = ProtoBuf.convertFieldsToCamelCase;
-  if(options && options.hasOwnProperty('convertFieldsToCamelCase')) {
-    ProtoBuf.convertFieldsToCamelCase = options.convertFieldsToCamelCase;
+
+  var protosDir = null;
+  var protoFile = filename;
+
+  if (_.isObject(filename)) {
+    protoFile = filename.file;
+    protosDir = filename.root;
   }
-  var builder;
-  try {
-    switch(format) {
-      case 'proto':
-      builder = ProtoBuf.loadProtoFile(filename);
-      break;
-      case 'json':
-      builder = ProtoBuf.loadJsonFile(filename);
-      break;
-      default:
-      throw new Error('Unrecognized format "' + format + '"');
+
+  var root = new ProtoBuf.Root();
+
+  if (protosDir) {
+    root.resolvePath = function(origin, target){
+        return protosDir + '/' + target;
     }
-  } finally {
-    ProtoBuf.convertFieldsToCamelCase = convertFieldsToCamelCaseOriginal;
   }
-  return loadObject(builder.ns, options);
+
+  var Root = root.loadSync(protoFile, options).resolveAll();
+  return loadObject(Root, options);
 };
 
 var log_template = _.template(
